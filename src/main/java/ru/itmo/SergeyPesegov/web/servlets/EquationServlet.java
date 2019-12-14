@@ -25,11 +25,13 @@ public class EquationServlet extends HttpServlet {
         String var = req.getPathInfo().replaceAll("/", "");
         System.err.println(var);
         if (context.getAttribute(var) == null) {
-            context.setAttribute(var, "a+b/c");
+            String str = req.getReader().readLine();
+            System.err.println(str);
+            context.setAttribute(var, str);
             resp.setStatus(SC_CREATED);
             resp.setHeader("Location", req.getContextPath());
         } else {
-            context.setAttribute(var, req.getParameter(var));
+            context.setAttribute(var, req.getReader().readLine());
             resp.setStatus(SC_OK);
         }
         try {
