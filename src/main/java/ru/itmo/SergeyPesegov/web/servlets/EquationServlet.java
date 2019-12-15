@@ -22,23 +22,21 @@ public class EquationServlet extends HttpServlet {
     protected void doPut(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
         ServletContext context = getServletContext();
-        String var = req.getPathInfo().replaceAll("/", "");
-        System.err.println(var);
-        if (context.getAttribute(var) == null) {
-            String str = req.getReader().readLine();
-            System.err.println(str);
-            context.setAttribute(var, str);
+        String key = req.getPathInfo().replaceAll("/", "");
+        String val = req.getReader().readLine();
+        if (context.getAttribute(key) == null) {
             resp.setStatus(SC_CREATED);
             resp.setHeader("Location", req.getContextPath());
         } else {
-            context.setAttribute(var, req.getReader().readLine());
             resp.setStatus(SC_OK);
         }
+        context.setAttribute(key, val);
+        System.err.println("New put: " + key + " = " + val);
         try {
-        if (var.equals("equation")) {
-                parseIntoPolishNotation(var);
+        if (key.equals("equation")) {
+                parseIntoPolishNotation(val);
         } else {
-            int arg = Integer.parseInt(req.getParameter(var));
+            int arg = Integer.parseInt(context.getAttribute(key).toString());
             if (arg < -10000 || arg > 10000)
                 throw new DataFormatException();
         }
@@ -58,12 +56,14 @@ public class EquationServlet extends HttpServlet {
         String var = req.getPathInfo().replaceAll("/", "");;
         context.setAttribute(var, null);
         resp.setStatus(SC_NO_CONTENT);
+        System.err.print("New delete: " + var);
     }
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
         ServletContext context = getServletContext();
+        System.err.println("DoGet with:");
         try {
             List<String> tokens = parseIntoPolishNotation(context.getAttribute("equation").toString());
             Map<String, Integer> args = new HashMap<>();
@@ -71,8 +71,9 @@ public class EquationServlet extends HttpServlet {
             Enumeration<String> names = context.getAttributeNames();
             while(names.hasMoreElements()) {
                 String key = names.nextElement();
+                if (key.length() != 1) continue;
                 String value = context.getAttribute(key).toString();
-                if (key.equals("equation")) continue;
+                System.err.println(key + " = " + value);
                 try {
                     args.put(key, Integer.parseInt(value));
                 } catch (NumberFormatException e) {
@@ -84,6 +85,18 @@ public class EquationServlet extends HttpServlet {
                 args.put(key, value);
             }
             int result = calculate(tokens,args);
+            //test
+            System.err.println("Polish: " + tokens.toString());
+            System.err.println("args: " + args.toString());
+            System.err.println("result: " + result);
+            names = context.getAttributeNames();
+            while(names.hasMoreElements()) {
+                String key = names.nextElement();
+                if (key.length() != 1) continue;
+                context.setAttribute(key, null);
+            }
+            context.setAttribute("equation", null);
+            //test
             resp.setStatus(SC_OK);
             resp.getOutputStream().print(result);
             resp.getOutputStream().flush();
@@ -94,12 +107,6 @@ public class EquationServlet extends HttpServlet {
             resp.sendError(SC_CONFLICT, "Problem with variable");
         } catch (NullPointerException eee) {
             resp.sendError(SC_CONFLICT, "Not set required parameters");
-            eee.printStackTrace();
-            System.err.println(context.getAttribute("equation"));
-            Enumeration<String> names = context.getAttributeNames();
-            while(names.hasMoreElements()) {
-                System.err.println(context.getAttribute(names.nextElement()));
-            }
         }
     }
 
@@ -178,7 +185,6 @@ public class EquationServlet extends HttpServlet {
                     break;
                 default:
                     if(args.containsKey(token)) {
-//                        System.err.println(args.get(token));
                         stack.addFirst(args.get(token));
                     } else {
                         int arg = Integer.parseInt(token); //throw exception
